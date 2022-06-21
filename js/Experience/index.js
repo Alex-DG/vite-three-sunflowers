@@ -90,6 +90,7 @@ class Experience {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.physicallyCorrectLights = true
     this.renderer.shadowMap.enabled = true
+    this.renderer.shadowMap.type = THREE.PCFShadowMap
     this.renderer.outputEncoding = THREE.sRGBEncoding
     this.container.appendChild(this.renderer.domElement)
   }
