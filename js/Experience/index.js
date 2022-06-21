@@ -88,6 +88,9 @@ class Experience {
     })
     this.renderer.setSize(this.sizes.width, this.sizes.height)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    this.renderer.physicallyCorrectLights = true
+    this.renderer.shadowMap.enabled = true
+    this.renderer.outputEncoding = THREE.sRGBEncoding
     this.container.appendChild(this.renderer.domElement)
   }
 
@@ -100,8 +103,8 @@ class Experience {
 
     this.light2.castShadow = true
     this.light2.shadow.bias = -0.01
-    this.light2.shadow.mapSize.width = 2048
-    this.light2.shadow.mapSize.height = 2048
+    this.light2.shadow.mapSize.width = 1024
+    this.light2.shadow.mapSize.height = 1024
 
     this.light2.shadow.camera.near = 0.1
     this.light2.shadow.camera.far = 20
@@ -117,6 +120,12 @@ class Experience {
     this.loader.load(modelSrc, (gltf) => {
       console.log({ gltf })
       this.tank = gltf.scene
+      this.tank.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true
+          child.receiveShadow = true
+        }
+      })
       this.scene.add(this.tank)
     })
   }
