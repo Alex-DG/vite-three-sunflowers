@@ -11,6 +11,9 @@ import { scaleCurve } from './Utils/math'
 
 class Experience {
   constructor(options) {
+    this.container = options.domElement
+    this.count = options.count || 5000
+
     this.scene = new THREE.Scene()
 
     this.loader = new GLTFLoader()
@@ -23,10 +26,7 @@ class Experience {
     this.raycaster = new THREE.Raycaster()
     this.pointer = new THREE.Vector2()
 
-    this.container = options.domElement
-
     // Mesh Surface Sampler / Instanced Mesh - Setup
-    this.count = options.count || 5000 // all objects in the scene
     this.ages = new Float32Array(this.count)
     this.scales = new Float32Array(this.count)
     this.dummy = new THREE.Object3D()
@@ -47,7 +47,7 @@ class Experience {
     this.setRenderer()
     this.setCamera()
     this.setLights()
-    this.setTank()
+    this.setObject()
     this.setResize()
     this.update()
 
@@ -87,7 +87,7 @@ class Experience {
 
     // calculate objects intersecting the picking ray
     const intersects = this.raycaster.intersectObjects(
-      this.tank.children[0].children
+      this.model.children[0].children
     )
 
     if (intersects.length > 0) {
@@ -97,15 +97,17 @@ class Experience {
 
   //////////////////////////////////////////////////////////////////////////////
 
-  setInstancedMesh() {
-    this.sampler = new MeshSurfaceSampler(this.tank.children[0].children[0])
+  setInstancedMesh(mergedGeometriesMesh) {
+    this.sampler = new MeshSurfaceSampler(mergedGeometriesMesh)
       .setWeightAttribute('uv')
       .build()
 
-    const geometry = new THREE.BoxBufferGeometry(0.1, 0.1, 1)
+    const geometry = new THREE.BoxBufferGeometry(0.01, 0.01, 1)
     const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 })
 
     this.flowers = new THREE.InstancedMesh(geometry, material, this.count)
+    this.flowers.receiveShadow = true
+    this.flowers.castShadow = true
 
     for (let i = 0; i < this.count; i++) {
       this.ages[i] = Math.random()
@@ -144,7 +146,7 @@ class Experience {
       1000
     )
 
-    const xyz = 2.25
+    const xyz = 1
     this.camera.position.set(xyz, xyz, xyz)
 
     this.scene.add(this.camera)
@@ -190,22 +192,37 @@ class Experience {
     this.scene.add(this.light2)
   }
 
-  setTank() {
+  setObject() {
+    let objectGeometries = []
+
     this.loader.load(modelSrc, (gltf) => {
-      this.tank = gltf.scene
-      this.tank.traverse((child) => {
+      this.model = gltf.scene
+      this.model.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true
           child.receiveShadow = true
+
+          child.geometry.computeVertexNormals() // Computes vertex normals by averaging face normals https://threejs.org/docs/#api/en/core/BufferGeometry.computeVertexNormals
+          objectGeometries.push(child.geometry)
         }
       })
-      this.scene.add(this.tank)
+
+      let mergedGeometries = mergeBufferGeometries(objectGeometries)
+      console.log({ objectGeometries })
+
+      const mergedGeometriesMesh = new THREE.Mesh(
+        mergedGeometries,
+        new THREE.MeshNormalMaterial()
+      )
+
+      // this.scene.add(mergedGeometriesMesh)
+      this.scene.add(this.model)
 
       // on Tank loaded check for the mouse intersection with the model
       this.setMouse()
 
       // Init Mesh surface sample and instanced mesh
-      this.setInstancedMesh()
+      this.setInstancedMesh(mergedGeometriesMesh)
     })
   }
 
