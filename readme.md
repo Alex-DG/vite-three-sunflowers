@@ -1,5 +1,11 @@
 # Vite Three Sunflowers
 
+Key points covered in this demo:
+
+- InstancedMesh
+- MeshSurfaceSampler
+- mergeBufferGeometries
+
 ## Setup
 
 Run the following commands:
