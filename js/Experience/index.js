@@ -2,9 +2,12 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
+import { MeshSurfaceSampler } from 'three/examples/jsm/math/MeshSurfaceSampler.js'
 
 import modelSrc from '../../assets/models/tank.glb'
-console.log({ modelSrc })
+
+import { scaleCurve } from './Utils/math'
+
 class Experience {
   constructor(options) {
     this.scene = new THREE.Scene()
@@ -16,7 +19,20 @@ class Experience {
     )
     this.loader.setDRACOLoader(dracoLoader)
 
+    this.raycaster = new THREE.Raycaster()
+    this.pointer = new THREE.Vector2()
+
     this.container = options.domElement
+
+    // Mesh Surface Sampler / Instanced Mesh - Setup
+    this.count = options.count || 500 // all objects in the scene
+    this.ages = new Float32Array(this.count)
+    this.scales = new Float32Array(this.count)
+    this.dummy = new THREE.Object3D()
+
+    this._position = new THREE.Vector3()
+    this._normal = new THREE.Vector3()
+    this._scale = new THREE.Vector3()
 
     this.init()
   }
@@ -38,11 +54,15 @@ class Experience {
   }
 
   bind() {
-    this.resize = this.resize.bind(this)
+    this.onResize = this.onResize.bind(this)
+    this.onPointerMove = this.onPointerMove.bind(this)
+
     this.update = this.update.bind(this)
   }
 
-  resize() {
+  //////////////////////////////////////////////////////////////////////////////
+
+  onResize() {
     // Update sizes
     this.sizes.width = window.innerWidth
     this.sizes.height = window.innerHeight
@@ -56,7 +76,56 @@ class Experience {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   }
 
+  onPointerMove(event) {
+    // calculate pointer position in normalized device coordinates
+    // (-1 to +1) for both components
+    this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1
+    this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1
+
+    this.raycaster.setFromCamera(this.pointer, this.camera)
+
+    // calculate objects intersecting the picking ray
+    const intersects = this.raycaster.intersectObjects(
+      this.tank.children[0].children
+    )
+
+    if (intersects.length > 0) {
+      // console.log({ found: intersects[0].object.name })
+    }
+  }
+
   //////////////////////////////////////////////////////////////////////////////
+
+  setInstancedMesh() {
+    this.sampler = new MeshSurfaceSampler(this.tank.children[0].children[0])
+      .setWeightAttribute('uv')
+      .build()
+
+    const geometry = new THREE.BoxBufferGeometry(0.1, 0.1, 1)
+    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 })
+
+    this.flowers = new THREE.InstancedMesh(geometry, material, this.count)
+
+    for (let i = 0; i < this.count; i++) {
+      this.ages[i] = Math.random()
+      this.scales[i] = scaleCurve(this.ages[i])
+
+      // Resample particle
+      this.sampler.sample(this._position, this._normal)
+      this._normal.add(this._position)
+
+      this.dummy.position.copy(this._position)
+      this.dummy.scale.set(this.scales[i], this.scales[i], this.scales[i])
+      this.dummy.lookAt(this._normal)
+      this.dummy.updateMatrix()
+
+      this.flowers.setMatrixAt(i, this.dummy.matrix)
+    }
+
+    this.flowers.instanceMatrix.needsUpdate = true
+
+    this.scene.add(this.flowers)
+  }
 
   setSizes() {
     this.sizes = {
@@ -73,7 +142,10 @@ class Experience {
       0.001,
       1000
     )
-    this.camera.position.set(1, 1, 1)
+
+    const xyz = 2.25
+    this.camera.position.set(xyz, xyz, xyz)
+
     this.scene.add(this.camera)
 
     // Controls
@@ -90,7 +162,7 @@ class Experience {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.physicallyCorrectLights = true
     this.renderer.shadowMap.enabled = true
-    this.renderer.shadowMap.type = THREE.PCFShadowMap
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.outputEncoding = THREE.sRGBEncoding
     this.container.appendChild(this.renderer.domElement)
   }
@@ -119,7 +191,6 @@ class Experience {
 
   setTank() {
     this.loader.load(modelSrc, (gltf) => {
-      console.log({ gltf })
       this.tank = gltf.scene
       this.tank.traverse((child) => {
         if (child.isMesh) {
@@ -128,11 +199,21 @@ class Experience {
         }
       })
       this.scene.add(this.tank)
+
+      // on Tank loaded check for the mouse intersection with the model
+      this.setMouse()
+
+      // Init Mesh surface sample and instanced mesh
+      this.setInstancedMesh()
     })
   }
 
   setResize() {
-    window.addEventListener('resize', this.resize)
+    window.addEventListener('resize', this.onResize)
+  }
+
+  setMouse() {
+    window.addEventListener('pointermove', this.onPointerMove)
   }
 
   //////////////////////////////////////////////////////////////////////////////
