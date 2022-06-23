@@ -102,6 +102,10 @@ class Experience {
 
     this.isSceneReady = true
     this.setMouse()
+
+    setTimeout(() => {
+      loadingDom.style.display = 'none'
+    }, 500)
   }
 
   //////////////////////////////////////////////////////////////////////////////
