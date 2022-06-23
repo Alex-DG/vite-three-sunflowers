@@ -8,8 +8,6 @@ import { mergeBufferGeometries } from 'three/examples/jsm/utils/BufferGeometryUt
 import modelSrc from '../../assets/models/tank.glb'
 import sunflowerSrc from '../../assets/models/sunflower.glb'
 
-import { scaleCurve } from './Utils/math'
-
 class Experience {
   constructor(options) {
     // Experience parameters
@@ -26,18 +24,23 @@ class Experience {
     )
     this.loader.setDRACOLoader(dracoLoader)
 
+    this.isSceneReady = false
+
     // Mouse tracking
     this.raycaster = new THREE.Raycaster()
     this.pointer = new THREE.Vector2()
 
     // Mesh Surface Sampler / Instanced Mesh - Setup
     this.ages = new Float32Array(this.count)
+    this.growthSpeed = new Float32Array(this.count) // each sunflower has a different growth speed
     this.scales = new Float32Array(this.count)
     this.dummy = new THREE.Object3D()
 
     this.currentPoint = new THREE.Vector3()
     this.position = new THREE.Vector3()
+    this.positions = []
     this.normal = new THREE.Vector3()
+    this.normals = []
     this.scale = new THREE.Vector3()
 
     // Start experience
@@ -49,12 +52,15 @@ class Experience {
    */
   init() {
     this.bind()
+
     this.setSizes()
     this.setRenderer()
     this.setCamera()
     this.setLights()
-    this.loadObjects()
     this.setResize()
+
+    this.loadObjects()
+
     this.update()
 
     console.log('🤖', 'Experience initialized')
@@ -65,6 +71,29 @@ class Experience {
     this.onPointerMove = this.onPointerMove.bind(this)
 
     this.update = this.update.bind(this)
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  rescaleSunflower(index) {
+    this.dummy.position.copy(this.positions[index])
+    const distance = this.currentPoint.distanceTo(this.positions[index])
+
+    if (distance < 0.5) {
+      this.growthSpeed[index] += 0.0025
+    } else {
+      this.growthSpeed[index] *= 0.9
+    }
+
+    this.scales[index] += this.growthSpeed[index]
+    this.scales[index] = Math.min(1, this.scales[index])
+
+    const scale = this.scales[index]
+    this.dummy.scale.set(scale, scale, scale)
+    this.dummy.lookAt(this.normals[index])
+    this.dummy.updateMatrix()
+
+    this.flowers.setMatrixAt(index, this.dummy.matrix)
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -98,6 +127,7 @@ class Experience {
 
     if (intersects.length > 0) {
       // console.log({ found: intersects[0].object.name })
+      this.currentPoint.copy(intersects[0].point)
     }
   }
 
@@ -117,8 +147,9 @@ class Experience {
     this.flowers.castShadow = true
 
     for (let i = 0; i < this.count; i++) {
-      this.ages[i] = Math.random()
-      this.scales[i] = scaleCurve(this.ages[i])
+      this.ages[i] = 0 //Math.random()
+      this.scales[i] = this.ages[i] //scaleCurve(this.ages[i])
+      this.growthSpeed[i] = 0
 
       // Resample particle
       this.sampler.sample(this.position, this.normal)
@@ -130,6 +161,9 @@ class Experience {
       this.dummy.updateMatrix()
 
       this.flowers.setMatrixAt(i, this.dummy.matrix)
+
+      this.positions.push(this.position.clone())
+      this.normals.push(this.normal.clone())
     }
 
     this.flowers.instanceMatrix.needsUpdate = true
@@ -153,8 +187,8 @@ class Experience {
       1000
     )
 
-    const xyz = 1
-    this.camera.position.set(xyz, xyz, xyz)
+    const position = 2
+    this.camera.position.set(position, position, position)
 
     this.scene.add(this.camera)
 
@@ -247,19 +281,6 @@ class Experience {
     }
   }
 
-  async loadObjects() {
-    const [tankModel, sunflowerModel] = await Promise.all([
-      this.loader.loadAsync(modelSrc),
-      this.loader.loadAsync(sunflowerSrc),
-    ])
-
-    this.setTank(tankModel)
-    this.setSunflower(sunflowerModel)
-
-    // Init Mesh surface sample and instanced mesh
-    this.setInstancedMesh()
-  }
-
   setResize() {
     window.addEventListener('resize', this.onResize)
   }
@@ -270,12 +291,38 @@ class Experience {
 
   //////////////////////////////////////////////////////////////////////////////
 
-  update() {
-    // Update controls
-    this.controls.update()
+  async loadObjects() {
+    const [tankModel, sunflowerModel] = await Promise.all([
+      this.loader.loadAsync(modelSrc),
+      this.loader.loadAsync(sunflowerSrc),
+    ])
 
-    // Render
-    this.renderer.render(this.scene, this.camera)
+    this.setTank(tankModel)
+    this.setSunflower(sunflowerModel)
+    this.setInstancedMesh()
+
+    this.isSceneReady = true
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  updateSunflowers() {
+    for (let index = 0; index < this.count; index++) {
+      this.rescaleSunflower(index)
+    }
+    this.flowers.instanceMatrix.needsUpdate = true
+  }
+
+  update() {
+    if (this.isSceneReady) {
+      this.updateSunflowers()
+
+      // Update controls
+      this.controls.update()
+
+      // Render
+      this.renderer.render(this.scene, this.camera)
+    }
 
     // Call update again on the next frame
     window.requestAnimationFrame(this.update)

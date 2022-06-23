@@ -17,4 +17,5 @@ import Experience from './Experience'
  */
 new Experience({
   domElement: document.getElementById('experience'),
+  count: 5000,
 })
