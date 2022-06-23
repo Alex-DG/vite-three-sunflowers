@@ -7,40 +7,60 @@ html,
 body {
   height: 100vh;
   font-family: Arial, Helvetica, Arial, sans-serif;
+  color: rgb(247, 247, 247);
   background-color: rgb(27, 27, 31);
 }
 
-#app > .container {
-  margin-top: 60px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1em;
-
+#loading {
   position: absolute;
   z-index: 1;
-  width: 100%;
-}
-#app > .container > h1 {
-  color: rgb(247, 247, 247);
-}
-#app > .container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1em;
 
-  position: absolute;
-  z-index: 1;
+  opacity: 1;
+
+  top: 0;
+  left: 0;
+
   width: 100%;
+  height: 100%;
+
+  background-color: rgb(27, 27, 31);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  gap: 0.25em;
+
+  transition: opacity 0.5s ease-out;
+  -webkit-transition: opacity 0.5s ease-out;
 }
-#app > .container > h1 {
-  color: rgb(247, 247, 247);
+
+@keyframes bounce {
+  0% {
+    transform: scale(1, 1) translateY(0);
+  }
+  10% {
+    transform: scale(1.1, 0.9) translateY(0);
+  }
+  30% {
+    transform: scale(0.9, 1.1) translateY(-40px);
+  }
+  50% {
+    transform: scale(1, 1) translateY(0);
+  }
+  100% {
+    transform: scale(1, 1) translateY(0);
+  }
 }
-#app > .container > a {
-  color: hotpink;
+
+#loading > .sunflower {
+  transform-origin: bottom;
+  animation-duration: 2s;
+  animation-iteration-count: infinite;
+  animation-name: bounce;
+  animation-timing-function: ease;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
 }
 
 #experience {

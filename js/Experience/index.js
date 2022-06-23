@@ -96,6 +96,14 @@ class Experience {
     this.flowers.setMatrixAt(index, this.dummy.matrix)
   }
 
+  hideLoading() {
+    const loadingDom = document.getElementById('loading')
+    loadingDom.style.opacity = '0'
+
+    this.isSceneReady = true
+    this.setMouse()
+  }
+
   //////////////////////////////////////////////////////////////////////////////
 
   onResize() {
@@ -257,9 +265,6 @@ class Experience {
 
       // this.scene.add(mergedGeometriesMesh)
       this.scene.add(this.model)
-
-      // on Tank loaded check for the mouse intersection with the model
-      this.setMouse()
     }
   }
 
@@ -301,7 +306,9 @@ class Experience {
     this.setSunflower(sunflowerModel)
     this.setInstancedMesh()
 
-    this.isSceneReady = true
+    setTimeout(() => {
+      this.hideLoading()
+    }, 200)
   }
 
   //////////////////////////////////////////////////////////////////////////////
