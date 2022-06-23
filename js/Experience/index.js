@@ -6,16 +6,19 @@ import { MeshSurfaceSampler } from 'three/examples/jsm/math/MeshSurfaceSampler.j
 import { mergeBufferGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils'
 
 import modelSrc from '../../assets/models/tank.glb'
+import sunflowerSrc from '../../assets/models/sunflower.glb'
 
 import { scaleCurve } from './Utils/math'
 
 class Experience {
   constructor(options) {
+    // Experience parameters
     this.container = options.domElement
     this.count = options.count || 5000
 
     this.scene = new THREE.Scene()
 
+    // Loaders
     this.loader = new GLTFLoader()
     const dracoLoader = new DRACOLoader()
     dracoLoader.setDecoderPath(
@@ -23,6 +26,7 @@ class Experience {
     )
     this.loader.setDRACOLoader(dracoLoader)
 
+    // Mouse tracking
     this.raycaster = new THREE.Raycaster()
     this.pointer = new THREE.Vector2()
 
@@ -31,10 +35,12 @@ class Experience {
     this.scales = new Float32Array(this.count)
     this.dummy = new THREE.Object3D()
 
-    this._position = new THREE.Vector3()
-    this._normal = new THREE.Vector3()
-    this._scale = new THREE.Vector3()
+    this.currentPoint = new THREE.Vector3()
+    this.position = new THREE.Vector3()
+    this.normal = new THREE.Vector3()
+    this.scale = new THREE.Vector3()
 
+    // Start experience
     this.init()
   }
 
@@ -47,7 +53,7 @@ class Experience {
     this.setRenderer()
     this.setCamera()
     this.setLights()
-    this.setObject()
+    this.loadObjects()
     this.setResize()
     this.update()
 
@@ -97,13 +103,14 @@ class Experience {
 
   //////////////////////////////////////////////////////////////////////////////
 
-  setInstancedMesh(mergedGeometriesMesh) {
-    this.sampler = new MeshSurfaceSampler(mergedGeometriesMesh)
+  setInstancedMesh() {
+    // https://www.youtube.com/watch?v=jmsw7ZLASkg at 00:40:00 mins
+    this.sampler = new MeshSurfaceSampler(this.mergedGeometriesMesh)
       .setWeightAttribute('uv')
       .build()
 
-    const geometry = new THREE.BoxBufferGeometry(0.01, 0.01, 1)
-    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 })
+    const geometry = this.sunflower.geometry //new THREE.BoxBufferGeometry(0.01, 0.01, 1)
+    const material = this.sunflower.material //new THREE.MeshStandardMaterial({ color: 0x00ff00 })
 
     this.flowers = new THREE.InstancedMesh(geometry, material, this.count)
     this.flowers.receiveShadow = true
@@ -114,12 +121,12 @@ class Experience {
       this.scales[i] = scaleCurve(this.ages[i])
 
       // Resample particle
-      this.sampler.sample(this._position, this._normal)
-      this._normal.add(this._position)
+      this.sampler.sample(this.position, this.normal)
+      this.normal.add(this.position)
 
-      this.dummy.position.copy(this._position)
+      this.dummy.position.copy(this.position)
       this.dummy.scale.set(this.scales[i], this.scales[i], this.scales[i])
-      this.dummy.lookAt(this._normal)
+      this.dummy.lookAt(this.normal)
       this.dummy.updateMatrix()
 
       this.flowers.setMatrixAt(i, this.dummy.matrix)
@@ -192,11 +199,11 @@ class Experience {
     this.scene.add(this.light2)
   }
 
-  setObject() {
-    let objectGeometries = []
+  setTank(tankModel) {
+    if (tankModel) {
+      let objectGeometries = []
 
-    this.loader.load(modelSrc, (gltf) => {
-      this.model = gltf.scene
+      this.model = tankModel.scene
       this.model.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true
@@ -207,12 +214,11 @@ class Experience {
         }
       })
 
-      let mergedGeometries = mergeBufferGeometries(objectGeometries)
-      console.log({ objectGeometries })
-
-      const mergedGeometriesMesh = new THREE.Mesh(
+      const mergedGeometries = mergeBufferGeometries(objectGeometries)
+      const mergedGeometriesMat = new THREE.MeshNormalMaterial()
+      this.mergedGeometriesMesh = new THREE.Mesh(
         mergedGeometries,
-        new THREE.MeshNormalMaterial()
+        mergedGeometriesMat
       )
 
       // this.scene.add(mergedGeometriesMesh)
@@ -220,10 +226,38 @@ class Experience {
 
       // on Tank loaded check for the mouse intersection with the model
       this.setMouse()
+    }
+  }
 
-      // Init Mesh surface sample and instanced mesh
-      this.setInstancedMesh(mergedGeometriesMesh)
-    })
+  setSunflower(sunflowerModel) {
+    if (sunflowerModel) {
+      this.sunflower = sunflowerModel.scene.children[0].children[0].children[0]
+
+      const material = this.sunflower.material
+      const map = material.map
+
+      material.emissive = new THREE.Color('#FFFF00')
+      material.emissiveIntensity = 0.8
+      material.emissiveMap = map
+      material.color.convertSRGBToLinear()
+      map.encoding = THREE.sRGBEncoding
+
+      const scale = 0.003
+      this.sunflower.geometry.scale(scale, scale, scale) // can be done with blender 1st, to optimise the code!
+    }
+  }
+
+  async loadObjects() {
+    const [tankModel, sunflowerModel] = await Promise.all([
+      this.loader.loadAsync(modelSrc),
+      this.loader.loadAsync(sunflowerSrc),
+    ])
+
+    this.setTank(tankModel)
+    this.setSunflower(sunflowerModel)
+
+    // Init Mesh surface sample and instanced mesh
+    this.setInstancedMesh()
   }
 
   setResize() {
