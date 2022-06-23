@@ -63,6 +63,27 @@ body {
   margin-bottom: 0.5rem;
 }
 
+#credits {
+  margin: 1em;
+  position: absolute;
+  z-index: 1;
+
+  opacity: 1;
+
+  bottom: 0;
+  right: 0;
+}
+
+#credits > a {
+  cursor: pointer;
+  color: aliceblue;
+  text-decoration: underline;
+}
+
+#credits > a:hover {
+  color: hotpink;
+}
+
 #experience {
   position: fixed;
 

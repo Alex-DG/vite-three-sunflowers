@@ -6,6 +6,9 @@ Key points covered in this demo:
 - MeshSurfaceSampler
 - mergeBufferGeometries
 
+Learning with [@Yuri Artiukh](https://twitter.com/akella)
+Demo as NFT: [https://versum.xyz/token/versum/21733](https://versum.xyz/token/versum/21733), buy to support Ukraine
+
 ## Setup
 
 Run the following commands:
