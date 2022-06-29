@@ -146,7 +146,6 @@ class Experience {
   //////////////////////////////////////////////////////////////////////////////
 
   setInstancedMesh() {
-    // https://www.youtube.com/watch?v=jmsw7ZLASkg at 00:40:00 mins
     this.sampler = new MeshSurfaceSampler(this.mergedGeometriesMesh)
       .setWeightAttribute('uv')
       .build()
